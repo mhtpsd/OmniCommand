@@ -358,6 +358,8 @@ npm install && npm run dev
 
 Open **http://localhost:3000** — the dashboard will start updating live as the producer streams sensor data.
 
+> **Note on Triage Agent (Step 4):** The analytics engine calls Gemini directly in production. Running the ADK agent locally is optional — it gives you the full Agent Platform experience but is not required for the dashboard to function. See the [ADK Setup](#-google-adk-triage-agent-setup) section below.
+
 ### Minimum required keys
 
 | Key | Where to get |
@@ -366,6 +368,136 @@ Open **http://localhost:3000** — the dashboard will start updating live as the
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | [account.mapbox.com](https://account.mapbox.com/) — free tier |
 
 BigQuery and Confluent Cloud are optional for local dev — the live dashboard works with just Kafka + Redis.
+
+---
+
+## 🤖 Google ADK Triage Agent Setup
+
+The `triage-agent/` folder contains a **Google Agent Development Kit (ADK)** agent that runs the same hazard triage logic through the official Gemini Enterprise Agent Platform runtime. This is what satisfies the Agent Platform rubric requirement.
+
+> **Production vs Local:** In the deployed backend (Railway), `analytics-engine` calls the Gemini API directly — no ADK server needed. Locally, you can optionally run the ADK server to experience the full Agent Platform flow.
+
+### Prerequisites
+
+- Python 3.10+
+- A Gemini API key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (free, instant)
+- *(Optional, for Vertex AI path)* A GCP project with the **Vertex AI API** enabled and `gcloud` CLI installed
+
+### Step 1 — Install the ADK
+
+```bash
+cd triage-agent
+pip install -r requirements.txt
+```
+
+This installs `google-adk` — Google's Agent Development Kit. Verify the install:
+
+```bash
+adk --version
+```
+
+### Step 2 — Configure the environment
+
+```bash
+cd triage-agent/flood_triage_agent
+cp .env.example .env
+```
+
+Open `.env` and choose one of the two auth paths:
+
+**Option A — AI Studio API key (fastest, recommended for local dev)**
+```env
+GOOGLE_GENAI_USE_VERTEXAI=False
+GOOGLE_API_KEY=your-gemini-api-key-from-aistudio
+```
+Get your key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — it's free and ready instantly.
+
+**Option B — Vertex AI (counts as GCP Enterprise Agent Platform)**
+```env
+GOOGLE_GENAI_USE_VERTEXAI=True
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+```
+Requirements for Option B:
+1. A GCP project with the **Vertex AI API** enabled
+2. Run `gcloud auth application-default login` to authenticate
+3. Or set `GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json`
+
+### Step 3 — Run the ADK API server
+
+Run this from the `triage-agent/` directory (one level above `flood_triage_agent/`):
+
+```bash
+cd triage-agent
+adk api_server . --port 8001
+```
+
+You should see output like:
+```
+INFO:     Started server process
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001
+```
+
+The ADK server is now running at `http://localhost:8001`.
+
+### Step 4 — Test the agent directly
+
+```bash
+# Create a session
+curl -X POST http://localhost:8001/apps/flood_triage_agent/users/test/sessions/s1 \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Send a text prompt (without a real image)
+curl -X POST http://localhost:8001/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appName": "flood_triage_agent",
+    "userId": "test",
+    "sessionId": "s1",
+    "newMessage": {
+      "role": "user",
+      "parts": [{"text": "There is knee-deep flooding at a city intersection."}]
+    }
+  }'
+```
+
+Expected response shape:
+```json
+{
+  "hazard_type": "flooding",
+  "estimated_water_depth_m": 0.5,
+  "recommendation": "Suggest dispatching a water rescue unit for human confirmation before taking further action.",
+  "confidence": "medium"
+}
+```
+
+### Step 5 — Explore the ADK Web UI (bonus)
+
+The ADK also ships an interactive web interface for testing agents:
+
+```bash
+adk web
+```
+
+Open [http://localhost:8000](http://localhost:8000) in your browser — you can chat with the `flood_triage_agent`, inspect event traces, and see the full Agent Platform runtime in action.
+
+### Architecture note
+
+```
+Local development path:
+  ActionPanel (frontend)
+      → POST /api/triage (analytics-engine)
+      → analytics-engine/integrations/gemini_client.py
+      → [direct Gemini API call]        ← production path (Railway)
+      → OR http://localhost:8001/run     ← local ADK path (optional)
+            → flood_triage_agent/agent.py
+                → Gemini 2.5 Flash
+```
+
+Both paths use the same model (`gemini-2.5-flash`) and the same instruction prompt — the ADK layer adds session management, event tracing, and the Agent Platform runtime on top.
 
 ---
 
