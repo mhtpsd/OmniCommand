@@ -1,0 +1,36 @@
+# analytics-engine dependencies
+#
+# GPU NOTE: cudf-pandas gives you a free pandas -> GPU accelerator via
+# `cudf.pandas.install()`. It requires an NVIDIA GPU with CUDA support.
+# If you're developing on a laptop with no NVIDIA GPU, comment out the
+# cudf-cu12 line below -- risk_scoring.py already falls back to plain
+# pandas automatically (see the try/except import at the top of that file).
+# For the GPU benchmark proof (processing/benchmark_cudf_vs_pandas.py),
+# run that script on a machine/notebook that DOES have a GPU
+# (e.g. a free Google Colab T4 runtime).
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.10.0          # 2.10+ ships pre-built pydantic-core wheels for Python 3.14
+python-dotenv==1.0.1
+websockets>=13.0
+python-multipart>=0.0.12  # required by FastAPI for UploadFile/File() parsing (routes_triage.py)
+
+# streaming ingestion
+kafka-python-ng==2.2.2
+
+# fast cache
+redis==5.2.0
+
+# GCP historical storage -- run `pip install -U google-cloud-bigquery` to
+# get the latest version; pin here once confirmed working in your env
+google-cloud-bigquery
+
+# HTTP client for ADK agent server calls (integrations/gemini_client.py)
+# NOTE: google-genai removed -- gemini_client.py now calls the local ADK
+# agent server via httpx instead of calling the Gemini API directly.
+httpx>=0.27.0
+
+# data processing (CPU fallback + GPU acceleration)
+pandas>=2.0.0,<3.0.0
+# cudf-cu12==24.10.*    # uncomment on a CUDA-capable machine

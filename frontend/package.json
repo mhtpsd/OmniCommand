@@ -1,0 +1,28 @@
+{
+  "name": "omnicommand-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.5.20",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-map-gl": "7.1.7",
+    "mapbox-gl": "3.7.0",
+    "deck.gl": "9.0.38",
+    "@deck.gl/react": "9.0.38",
+    "@deck.gl/layers": "9.0.38",
+    "@deck.gl/core": "9.0.38"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/node": "22.9.0"
+  }
+}

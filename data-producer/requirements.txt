@@ -1,0 +1,5 @@
+# kafka-python (original) is unmaintained and breaks on Python 3.12+
+# (ModuleNotFoundError: kafka.vendor.six.moves). Use the maintained fork
+# below instead -- it is a drop-in replacement, same `from kafka import ...`
+# import path, no code changes needed.
+kafka-python-ng==2.2.2

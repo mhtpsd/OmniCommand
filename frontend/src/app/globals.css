@@ -1,0 +1,284 @@
+/*
+  globals.css
+  -----------
+  Dark "command center" theme -- risk-level colors here are the single
+  source of truth; MapView.tsx and SystemTickers.tsx should read these
+  same values (or the matching JS hex codes) rather than hardcoding
+  their own, so a map pin and a ticker badge for the same zone always
+  agree on color.
+*/
+
+:root {
+  --bg-page: #0b0e14;
+  --bg-panel: #131722;
+  --border-subtle: #232838;
+
+  --text-primary: #e8eaf0;
+  --text-secondary: #8b93a7;
+
+  --risk-low: #2fae60;
+  --risk-medium: #e0a12e;
+  --risk-high: #e0672e;
+  --risk-critical: #e02e3d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---------------------------------------------------------------------
+   Dashboard layout
+   -------------------------------------------------------------------- */
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "tickers tickers"
+    "map     panel";
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+@media (max-width: 860px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 55vh 1fr;
+    grid-template-areas:
+      "tickers"
+      "map"
+      "panel";
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   System tickers
+   -------------------------------------------------------------------- */
+
+.tickers {
+  grid-area: tickers;
+  display: flex;
+  gap: 1px;
+  background: var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ticker-card {
+  flex: 1;
+  background: var(--bg-panel);
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ticker-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.ticker-value {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.ticker-value.is-critical {
+  color: var(--risk-critical);
+}
+
+/* ---------------------------------------------------------------------
+   Map panel
+   -------------------------------------------------------------------- */
+
+.map-panel {
+  grid-area: map;
+  position: relative;
+  background: var(--bg-page);
+}
+
+.map-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+
+.map-empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px;
+}
+
+/* ---------------------------------------------------------------------
+   Action panel (triage upload + alerts)
+   -------------------------------------------------------------------- */
+
+.action-panel {
+  grid-area: panel;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.action-panel-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.action-panel-header h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+}
+
+.action-panel-header p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.upload-control {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upload-control input[type="file"] {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.upload-button {
+  background: var(--risk-medium);
+  color: #16130a;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.upload-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.upload-error {
+  font-size: 12px;
+  color: var(--risk-critical);
+}
+
+.alert-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert-empty {
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 8px 4px;
+}
+
+.alert-card {
+  background: var(--bg-page);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alert-card.is-newest {
+  border-color: var(--risk-medium);
+  box-shadow: 0 0 0 1px var(--risk-medium);
+}
+
+.alert-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hazard-badge {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.confidence-tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.alert-recommendation {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.alert-depth {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------------
+   Shared risk badges -- MapView and SystemTickers both key off these
+   -------------------------------------------------------------------- */
+
+.risk-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.risk-dot.low { background: var(--risk-low); }
+.risk-dot.medium { background: var(--risk-medium); }
+.risk-dot.high { background: var(--risk-high); }
+.risk-dot.critical { background: var(--risk-critical); }
