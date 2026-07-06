@@ -26,10 +26,9 @@ redis==5.2.0
 # get the latest version; pin here once confirmed working in your env
 google-cloud-bigquery
 
-# HTTP client for ADK agent server calls (integrations/gemini_client.py)
-# NOTE: google-genai removed -- gemini_client.py now calls the local ADK
-# agent server via httpx instead of calling the Gemini API directly.
-httpx>=0.27.0
+# Gemini API SDK -- used by integrations/gemini_client.py for photo triage
+# (direct API call; no ADK server needed in production)
+google-genai>=1.0.0
 
 # data processing (CPU fallback + GPU acceleration)
 pandas>=2.0.0,<3.0.0

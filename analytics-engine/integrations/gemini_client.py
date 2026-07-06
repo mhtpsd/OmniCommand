@@ -1,82 +1,68 @@
 """
 integrations/gemini_client.py
 --------------------------------
-Now calls the local ADK agent server (triage-agent/) instead of the
-Gemini API directly -- this is what makes the hazard triage feature
-count as genuine Gemini Enterprise Agent Platform usage.
+Calls the Gemini API directly via google-genai -- this works in production
+(Railway) without needing the local ADK agent server. The ADK triage agent
+(triage-agent/) uses the same model and instruction and is the reference
+implementation for the Agent Platform rubric; this module is the production
+path that the deployed backend actually calls.
 """
 
 import base64
 import json
-import uuid
+from functools import lru_cache
 
-import httpx
+from google import genai
+from google.genai import types
 
+from config import settings
 from models.schemas import TriageResponse
 
-ADK_BASE_URL = "http://localhost:8001"   # the triage-agent api_server
-ADK_APP_NAME = "flood_triage_agent"      # must match the folder name
+# Same instruction used in triage-agent/flood_triage_agent/agent.py
+_TRIAGE_PROMPT = """You are an urban hazard triage assistant supporting an
+emergency response dashboard. Given a photo of a possible hazard
+(flooding, downed power line, road blockage, or other), identify the
+hazard type. If flooding, estimate water depth in meters using visible
+reference objects (car doors, curbs, people) as scale. Give a
+one-sentence recommendation for a human dispatcher to review -- phrase
+it as a suggestion for a person to confirm, never as an automatic
+action. Respond ONLY with a JSON object (no markdown fences, no extra
+text) in exactly this shape:
+{"hazard_type": string, "estimated_water_depth_m": number or null,
+"recommendation": string, "confidence": "low"|"medium"|"high"}"""
+
+
+@lru_cache(maxsize=1)
+def _get_client() -> genai.Client:
+    return genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 def analyze_flood_photo(image_bytes: bytes, mime_type: str = "image/jpeg") -> TriageResponse:
-    user_id = "dashboard"
-    session_id = str(uuid.uuid4())
+    """Send a citizen photo to Gemini 2.5 Flash and return a structured triage result.
 
+    Degrades gracefully on any failure -- a bad API call or malformed
+    JSON response returns a low-confidence fallback instead of raising.
+    """
     try:
-        # 1. Create a session for this request.
-        httpx.post(
-            f"{ADK_BASE_URL}/apps/{ADK_APP_NAME}/users/{user_id}/sessions/{session_id}",
-            json={},
-            timeout=10,
-        ).raise_for_status()
-
-        # 2. Send the image + prompt to the agent.
-        response = httpx.post(
-            f"{ADK_BASE_URL}/run",
-            json={
-                "appName": ADK_APP_NAME,
-                "userId": user_id,
-                "sessionId": session_id,
-                "newMessage": {
-                    "role": "user",
-                    "parts": [
-                        {"inline_data": {
-                            "mime_type": mime_type,
-                            "data": base64.b64encode(image_bytes).decode(),
-                        }},
-                        {"text": "Analyze this hazard photo."},
-                    ],
-                },
-            },
-            timeout=30,
+        client = _get_client()
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                _TRIAGE_PROMPT,
+            ],
         )
-        response.raise_for_status()
-        events = response.json()
-
-        # 3. Extract the agent's final text reply from the event list.
-        reply_text = _extract_final_text(events)
-
-        cleaned = reply_text.strip().removeprefix("```json").removesuffix("```").strip()
+        reply = response.text.strip()
+        # Strip ```json fences if the model adds them despite instructions.
+        cleaned = reply.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         parsed = json.loads(cleaned)
         return TriageResponse(**parsed)
 
     except Exception as exc:
-        print(f"[gemini_client] ADK agent failed, returning fallback: {exc}")
-        # Never let a failed AI call crash the request -- degrade gracefully.
+        print(f"[gemini_client] Gemini call failed, returning fallback: {exc}")
+        # Never let a failed AI call crash the live pipeline.
         return TriageResponse(
             hazard_type="unknown",
             confidence="low",
             recommendation="Unable to auto-analyze -- flag for manual review",
         )
-
-
-def _extract_final_text(events: list) -> str:
-    """
-    Iterate `events` (a list of ADK event dicts) and find the last
-    one with a text part in its content.
-    """
-    for event in reversed(events):
-        for part in event.get("content", {}).get("parts", []):
-            if "text" in part:
-                return part["text"]
-    raise ValueError("No text reply found in agent response")
